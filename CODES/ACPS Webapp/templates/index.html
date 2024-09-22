@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TOMATO LEAF ANALYSIS</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-image: url("{{ url_for('static', filename='images/image.jpg') }}");
+            background-size: cover;
+            background-position: center;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            display: grid;
+            place-items: center;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+            text-align:center;
+            position: relative;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 32px;
+            margin-bottom: 20px;
+        }
+
+        #image-preview {
+            margin-bottom: 20px;
+        }
+
+        #image-preview img {
+            max-width: 100%;
+            border-radius: 8px;
+        }
+
+        #result {
+            font-size: 24px;
+            font-weight: bold;
+            margin-top: 20px;
+            display: none; /* Hide by default */
+        }
+
+        .upload-btn {
+            background-color: #0132c2;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            font-size: 18px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-top: 10px;
+            margin-bottom: 10px;
+            align-self: center;
+            cursor: pointer;
+        }
+        .submit-btn {
+            background-color: #0132c2;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            font-size: 18px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-top: 10px;
+            margin-bottom: 10px;
+            align-self: center;
+            cursor: pointer;
+        }
+        .reset-btn {
+            background-color: #bd1414;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            font-size: 18px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-top: 10px;
+            margin-bottom: 10px;
+            align-self: center;
+            cursor: pointer;
+        }
+
+        .upload-btn:hover,
+        .submit-btn:hover,
+        .reset-btn:hover {
+            background-color: #05a208;
+        }
+
+        .btn-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        /* New style for YOLOv8 results */
+        .yolo-results {
+            margin-top: 20px;
+        }
+
+        .yolo-image {
+            max-width: 100%;
+        }
+
+        /* Custom styles for predicted classes */
+        .healthy {
+            background-color: #36a832; /* Green */
+            color: #fff;
+        }
+
+        .stressed {
+            background-color: #f0d724; /* Yellow */
+            color: #000;
+        }
+
+        .diseased {
+            background-color: #bd3e03; /* Red*/
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>TOMATO LEAF ANALYSIS</h1>
+        <form id="upload-form" enctype="multipart/form-data">
+            <input type="file" id="file-input" name="file" style="display: none;">
+            <button type="button" class="submit-btn" id="upload-btn">Upload Image</button>
+        </form>
+        <div id="image-preview" style="display: none;">
+            <img id="preview-img" src="#" alt="Uploaded Image">
+        </div>
+        <div class="btn-container">
+            <button type="button" class="submit-btn" id="submit-btn" style="display: none;">Submit</button>
+            <button type="button" class="reset-btn" id="reset-btn" style="display: none;">Reset</button>
+        </div>
+        <div id="result"></div>
+
+        <!-- New section for displaying YOLOv8 results -->
+        <div class="yolo-results" id="yolo-results" style="display: none;">
+            <h2>YOLOv8 Detection Results</h2>
+            <div id="yolo-image-container"></div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('upload-btn').addEventListener('click', function() {
+            document.getElementById('file-input').click();
+        });
+    
+        document.getElementById('file-input').addEventListener('change', function(event) {
+            var file = event.target.files[0];
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('preview-img').src = e.target.result;
+                document.getElementById('image-preview').style.display = 'block';
+                document.getElementById('submit-btn').style.display = 'block';
+                document.getElementById('reset-btn').style.display = 'block';
+                document.getElementById('upload-btn').style.display = 'none';
+            }
+            reader.readAsDataURL(file);
+        });
+    
+        document.getElementById('submit-btn').addEventListener('click', function() {
+            var file = document.getElementById('file-input').files[0];
+            var formData = new FormData();
+            formData.append('file', file);
+    
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/predict', true);
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    var response = JSON.parse(xhr.responseText);
+                    var resultDiv = document.getElementById('result');
+                    if (response.predictedClass === '1') {
+                        resultDiv.innerHTML = 'HEALTHY';
+                        resultDiv.className = 'healthy';
+                    } else if (response.predictedClass === '2') {
+                        resultDiv.innerHTML = 'STRESSED';
+                        resultDiv.className = 'stressed';
+                    } else {
+                        resultDiv.innerHTML = 'DISEASED';
+                        resultDiv.className = 'diseased';
+                    }
+
+                    resultDiv.style.display = 'block';
+
+                    // Display YOLOv8 results if available
+                    if (response.yolo_images) {
+                        displayYOLOResults(response.yolo_images);
+                    }
+                } else {
+                    alert('Error predicting class!');
+                }
+            };
+            xhr.send(formData);
+        });
+
+        function displayYOLOResults(yoloResults) {
+            var container = document.getElementById('yolo-image-container');
+            container.innerHTML = '';
+
+            yoloResults.forEach(function(imageData) {
+                var img = document.createElement('img');
+                img.src = 'data:image/jpeg;base64,' + imageData;
+                img.classList.add('yolo-image');
+                container.appendChild(img);
+            });
+
+            document.getElementById('yolo-results').style.display = 'block';
+        }
+
+        document.getElementById('reset-btn').addEventListener('click', function() {
+            document.getElementById('file-input').value = ''; // Clear file input
+            document.getElementById('image-preview').style.display = 'none';
+            document.getElementById('preview-img').src = ''; // Clear image preview
+            document.getElementById('submit-btn').style.display = 'none'; // Hide submit button
+            document.getElementById('reset-btn').style.display = 'none'; // Hide reset button
+            document.getElementById('result').style.display = 'none'; // Hide result
+            document.getElementById('result').className = ''; // Reset result class
+            document.getElementById('upload-btn').style.display = 'block'; // Show upload button
+            document.getElementById('yolo-results').style.display = 'none'; // Hide YOLOv8 results
+        });
+    </script>
+</body>
+</html>
